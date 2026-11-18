@@ -119,9 +119,26 @@ const login = async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Account is inactive or suspended." });
     }
 
-    const role = employee.role;
+    let role = employee.role;
     if (!role || role.status !== "ACTIVE") {
-      return res.status(403).json({ success: false, message: "Employee role is invalid or inactive." });
+      // Auto-heal: Resolve canonical active role from existing roleName or department
+      const candidateName = role?.roleName || employee.department;
+      const canonicalName = normalizeRole(candidateName);
+      const activeRole = await Role.findOne({
+        roleName: canonicalName,
+        status: "ACTIVE",
+      }).populate("permissions");
+
+      if (activeRole) {
+        employee.role = activeRole._id;
+        if (canonicalName === "WAREHOUSE_MANAGER" && employee.department !== "WAREHOUSE") {
+          employee.department = "WAREHOUSE";
+        }
+        await employee.save({ validateBeforeSave: false });
+        role = activeRole;
+      } else {
+        return res.status(403).json({ success: false, message: "Employee role is invalid or inactive." });
+      }
     }
 
     const normalizedRole = normalizeRole(role.roleName);
@@ -156,6 +173,7 @@ const login = async (req, res, next) => {
         email: employee.email,
         department: employee.department,
         role: normalizedRole,
+        assignedWarehouses: employee.assignedWarehouses || [],
         permissions,
       },
     });
@@ -226,6 +244,7 @@ const me = async (req, res, next) => {
   try {
     const employee = await Employee.findById(req.user.id)
       .populate({ path: "role", populate: { path: "permissions" } })
+      .populate("assignedWarehouses", "warehouseName location status capacity")
       .select("-password");
 
     if (!employee) {
@@ -241,6 +260,7 @@ const me = async (req, res, next) => {
         email: employee.email,
         department: employee.department,
         role: normalizedRole,
+        assignedWarehouses: employee.assignedWarehouses || [],
         permissions: employee.role?.permissions?.map((p) => p.permissionName) || [],
         lastLogin: employee.lastLogin,
       },

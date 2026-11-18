@@ -76,7 +76,7 @@ auditLogSchema.virtual("newValue").get(function () {
 }).set(function (val) {
   this.newData = val;
 });
-
+ 
 auditLogSchema.index({ employee: 1, timestamp: -1 });
 auditLogSchema.index({ entityType: 1, timestamp: -1 });
 auditLogSchema.index({ action: 1 });

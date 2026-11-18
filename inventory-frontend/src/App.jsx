@@ -11,6 +11,7 @@ import { getDashboardRoute, ROLES } from "./utils/roles";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
+import VendorResponsePage from "./pages/auth/VendorResponsePage";
 
 // 1. Super Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -20,6 +21,7 @@ import CompanySettingsPage from "./pages/admin/CompanySettingsPage";
 import SystemConfigPage from "./pages/admin/SystemConfigPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import ReportsPage from "./pages/admin/ReportsPage";
+import CustomersPage from "./pages/sales/CustomersPage";
 
 // 2. Purchase Manager Pages
 import PurchaseDashboard from "./pages/purchase/PurchaseDashboard";
@@ -37,6 +39,7 @@ import StockTransfersPage from "./pages/warehouse/StockTransfersPage";
 import GoodsReceivingPage from "./pages/warehouse/GoodsReceivingPage";
 import StockAuditPage from "./pages/warehouse/StockAuditPage";
 import DamagedStockPage from "./pages/warehouse/DamagedStockPage";
+import VendorDebitNotesPage from "./pages/warehouse/VendorDebitNotesPage";
 
 // 4. Inventory Staff Pages
 import InventoryDashboard from "./pages/inventory/InventoryDashboard";
@@ -63,6 +66,10 @@ import DeliveryDashboard from "./pages/delivery/DeliveryDashboard";
 import AssignedDeliveriesPage from "./pages/delivery/AssignedDeliveriesPage";
 import DeliveryTrackingPage from "./pages/delivery/DeliveryTrackingPage";
 import DeliveryHistoryPage from "./pages/delivery/DeliveryHistoryPage";
+
+// 7. Centralized Generative AI Assistant & ML Forecasting Pages
+import AiAssistantPage from "./pages/ai/AiAssistantPage";
+import DemandForecasting from "./pages/ai/DemandForecasting";
 
 // Dashboard Redirect based on user role
 const DashboardRedirect = () => {
@@ -104,27 +111,37 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
+      <Route path="/vendor-response/:token" element={<VendorResponsePage />} />
 
       {/* Authenticated ERP Routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<DashboardRedirect />} />
+          <Route path="/ai/assistant" element={<AiAssistantPage />} />
+          <Route path="/demand-forecasting" element={<DemandForecasting />} />
+          <Route path="/ai/forecasting" element={<DemandForecasting />} />
 
           {/* Super Admin Routes */}
           <Route element={<RoleRoute allowedRoles={[ROLES.SUPER_ADMIN, "Super Admin"]} />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/employees" element={<EmployeesPage />} />
+            <Route path="/admin/customers" element={<CustomersPage />} />
             <Route path="/admin/roles" element={<RolesPermissionsPage />} />
             <Route path="/admin/settings" element={<CompanySettingsPage />} />
             <Route path="/admin/config" element={<SystemConfigPage />} />
             <Route path="/admin/audit" element={<AuditLogsPage />} />
+            <Route path="/admin/debit-notes" element={<VendorDebitNotesPage />} />
             <Route path="/admin/reports" element={<ReportsPage />} />
+          </Route>
+
+          {/* Purchase Requests Route (Shared by Purchase Manager & Warehouse Manager) */}
+          <Route element={<RoleRoute allowedRoles={[ROLES.PURCHASE_MANAGER, ROLES.WAREHOUSE_MANAGER, "Purchase Manager", "Warehouse Manager"]} />}>
+            <Route path="/purchase/requests" element={<PurchaseRequestsPage />} />
           </Route>
 
           {/* Purchase Manager Routes */}
           <Route element={<RoleRoute allowedRoles={[ROLES.PURCHASE_MANAGER, "Purchase Manager"]} />}>
             <Route path="/purchase/dashboard" element={<PurchaseDashboard />} />
-            <Route path="/purchase/requests" element={<PurchaseRequestsPage />} />
             <Route path="/purchase/orders" element={<PurchaseOrdersPage />} />
             <Route path="/purchase/vendors" element={<VendorsPage />} />
             <Route path="/purchase/receipts" element={<GoodsReceiptsPage />} />
@@ -134,12 +151,15 @@ function App() {
           {/* Warehouse Manager Routes */}
           <Route element={<RoleRoute allowedRoles={[ROLES.WAREHOUSE_MANAGER, "Warehouse Manager"]} />}>
             <Route path="/warehouse/dashboard" element={<WarehouseDashboard />} />
+            <Route path="/warehouse/requests" element={<PurchaseRequestsPage />} />
+            <Route path="/warehouse/purchase-requests" element={<PurchaseRequestsPage />} />
             <Route path="/warehouse/list" element={<WarehousesPage />} />
             <Route path="/warehouse/inventory" element={<WarehouseInventoryPage />} />
             <Route path="/warehouse/transfers" element={<StockTransfersPage />} />
             <Route path="/warehouse/receiving" element={<GoodsReceivingPage />} />
             <Route path="/warehouse/audit" element={<StockAuditPage />} />
             <Route path="/warehouse/damaged" element={<DamagedStockPage />} />
+            <Route path="/warehouse/debit-notes" element={<VendorDebitNotesPage />} />
           </Route>
 
           {/* Warehouse & Physical Stock Operations (Warehouse Manager) */}
@@ -159,11 +179,20 @@ function App() {
           {/* Sales Manager Routes */}
           <Route element={<RoleRoute allowedRoles={[ROLES.SALES_MANAGER]} />}>
             <Route path="/sales/dashboard" element={<SalesDashboard />} />
+            <Route path="/sales/customers" element={<CustomersPage />} />
             <Route path="/sales/orders" element={<SalesOrdersPage />} />
             <Route path="/sales/availability" element={<InventoryAvailabilityPage />} />
             <Route path="/sales/invoices" element={<InvoicesPage />} />
-            <Route path="/sales/returns" element={<ReturnsPage />} />
             <Route path="/sales/reports" element={<SalesReportsPage />} />
+          </Route>
+
+          {/* RMA Customer Returns Route (Sales Manager) */}
+          <Route element={<RoleRoute allowedRoles={[ROLES.SALES_MANAGER, "Sales Manager"]} />}>
+            <Route path="/sales/returns" element={<ReturnsPage />} />
+          </Route>
+
+          {/* Sales Manager Delivery Routes */}
+          <Route element={<RoleRoute allowedRoles={[ROLES.SALES_MANAGER]} />}>
             {/* Delivery & Fleet Management under Sales Manager */}
             <Route path="/delivery/dashboard" element={<DeliveryDashboard />} />
             <Route path="/delivery/assigned" element={<AssignedDeliveriesPage />} />

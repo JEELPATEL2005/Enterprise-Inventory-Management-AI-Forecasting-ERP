@@ -3,28 +3,52 @@ const c = require("../Controllers/inventoryController");
 const authorize = require("../Middleware/roleMiddleware");
 const { ROLES } = authorize;
 
-// All 4 roles can view inventory and check ATP / reorder status
+// View inventory: Super Admin, Warehouse Manager, Purchase Manager, Sales Manager, Central Operations Manager
 router.get(
   "/",
-  authorize(ROLES.SUPER_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.PURCHASE_MANAGER, ROLES.SALES_MANAGER),
+  authorize(
+    ROLES.SUPER_ADMIN,
+    ROLES.WAREHOUSE_MANAGER,
+    ROLES.PURCHASE_MANAGER,
+    ROLES.SALES_MANAGER,
+    ROLES.CENTRAL_WAREHOUSE_OPERATIONS_MANAGER
+  ),
   c.list
 );
 
 router.get(
   "/warehouse/:warehouseId",
-  authorize(ROLES.SUPER_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.PURCHASE_MANAGER, ROLES.SALES_MANAGER),
+  authorize(
+    ROLES.SUPER_ADMIN,
+    ROLES.WAREHOUSE_MANAGER,
+    ROLES.PURCHASE_MANAGER,
+    ROLES.SALES_MANAGER,
+    ROLES.CENTRAL_WAREHOUSE_OPERATIONS_MANAGER
+  ),
   c.getByWarehouse
 );
 
 router.get(
   "/warehouse/:warehouseId/product/:productId",
-  authorize(ROLES.SUPER_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.PURCHASE_MANAGER, ROLES.SALES_MANAGER),
+  authorize(
+    ROLES.SUPER_ADMIN,
+    ROLES.WAREHOUSE_MANAGER,
+    ROLES.PURCHASE_MANAGER,
+    ROLES.SALES_MANAGER,
+    ROLES.CENTRAL_WAREHOUSE_OPERATIONS_MANAGER
+  ),
   c.getByWarehouseProduct
 );
 
 router.get(
   "/:id",
-  authorize(ROLES.SUPER_ADMIN, ROLES.WAREHOUSE_MANAGER, ROLES.PURCHASE_MANAGER, ROLES.SALES_MANAGER),
+  authorize(
+    ROLES.SUPER_ADMIN,
+    ROLES.WAREHOUSE_MANAGER,
+    ROLES.PURCHASE_MANAGER,
+    ROLES.SALES_MANAGER,
+    ROLES.CENTRAL_WAREHOUSE_OPERATIONS_MANAGER
+  ),
   c.get
 );
 

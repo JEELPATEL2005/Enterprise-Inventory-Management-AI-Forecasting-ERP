@@ -1,0 +1,25 @@
+module.exports = {
+  testEnvironment: "node",
+  testTimeout: 30000,
+  verbose: true,
+  forceExit: true,
+  detectOpenHandles: true,
+  setupFilesAfterEnv: ["./tests/setup.js"],
+  globalSetup: "./tests/globalSetup.js",
+  globalTeardown: "./tests/globalTeardown.js",
+  testMatch: [
+    "**/tests/**/*.test.js",
+  ],
+  collectCoverageFrom: [
+    "Controllers/**/*.js",
+    "Middleware/**/*.js",
+    "services/**/*.js",
+    "Utils/**/*.js",
+    "jobs/**/*.js",
+    "Models/**/*.js",
+    "!**/node_modules/**",
+    "!**/inventory-frontend/**",
+  ],
+  coverageDirectory: "coverage",
+  coverageReporters: ["text", "text-summary", "lcov", "clover"],
+};

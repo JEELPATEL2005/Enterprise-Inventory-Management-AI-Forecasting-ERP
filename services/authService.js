@@ -36,6 +36,7 @@ const generateAccessToken = (employee, role, permissions = []) => {
     department: employee.department,
     roleId: role ? role._id : undefined,
     roleName: role ? role.roleName : "EMPLOYEE",
+    assignedWarehouses: (employee.assignedWarehouses || []).map((w) => (w._id ? String(w._id) : String(w))),
     permissions: permissions.map((p) => (typeof p === "string" ? p : p.permissionName)),
   };
 

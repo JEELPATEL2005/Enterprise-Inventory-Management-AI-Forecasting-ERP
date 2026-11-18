@@ -58,8 +58,26 @@ const list = async (req, res, next) => {
 
     if (req.query.startDate || req.query.endDate) {
       filter.timestamp = {};
-      if (req.query.startDate) filter.timestamp.$gte = new Date(req.query.startDate);
-      if (req.query.endDate) filter.timestamp.$lte = new Date(req.query.endDate);
+      if (req.query.startDate) {
+        const s = new Date(req.query.startDate);
+        if (isNaN(s.getTime())) {
+          return res.status(400).json({ success: false, message: "Invalid startDate format." });
+        }
+        filter.timestamp.$gte = s;
+      }
+      if (req.query.endDate) {
+        const e = new Date(req.query.endDate);
+        if (isNaN(e.getTime())) {
+          return res.status(400).json({ success: false, message: "Invalid endDate format." });
+        }
+        if (req.query.endDate.length === 10) {
+          e.setHours(23, 59, 59, 999);
+        }
+        filter.timestamp.$lte = e;
+      }
+      if (filter.timestamp.$gte && filter.timestamp.$lte && filter.timestamp.$gte > filter.timestamp.$lte) {
+        return res.status(400).json({ success: false, message: "startDate cannot be after endDate." });
+      }
     }
 
     const page = Math.max(1, parseInt(req.query.page) || 1);

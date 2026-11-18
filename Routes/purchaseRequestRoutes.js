@@ -16,15 +16,20 @@ router.get(
   c.get
 );
 
-// Create PRs: Super Admin, Purchase Manager, Warehouse Manager (for warehouse shortages)
+// Create PRs: Super Admin and Warehouse Manager ONLY (Purchase Manager cannot create PRs)
 router.post(
   "/",
-  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER, ROLES.WAREHOUSE_MANAGER),
+  authorize(ROLES.SUPER_ADMIN, ROLES.WAREHOUSE_MANAGER),
   c.create
 );
 
 // Approve / Reject / Cancel: Super Admin and Purchase Manager only
 router.put(
+  "/:id/approve",
+  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER),
+  c.approve
+);
+router.patch(
   "/:id/approve",
   authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER),
   c.approve
@@ -35,8 +40,18 @@ router.put(
   authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER),
   c.reject
 );
+router.patch(
+  "/:id/reject",
+  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER),
+  c.reject
+);
 
 router.put(
+  "/:id/cancel",
+  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER),
+  c.cancel
+);
+router.patch(
   "/:id/cancel",
   authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER),
   c.cancel

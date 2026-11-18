@@ -2,6 +2,7 @@ import React from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
+import FloatingAiWidget from "../components/ai/FloatingAiWidget";
 
 const DashboardLayout = () => {
     return (
@@ -13,6 +14,7 @@ const DashboardLayout = () => {
                     <Outlet />
                 </main>
             </div>
+            <FloatingAiWidget />
         </div>
     );
 };

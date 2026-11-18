@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, ShoppingCart, CheckCircle, PackageCheck, AlertCircle, RefreshCw, FileText, Ban, Truck } from "lucide-react";
+import { Plus, ShoppingCart, CheckCircle, PackageCheck, AlertCircle, RefreshCw, FileText, Ban, Truck, Trash2, UserPlus } from "lucide-react";
 import DataTable from "../../components/common/DataTable";
 import Modal from "../../components/common/Modal";
 import Toast from "../../components/common/Toast";
@@ -20,11 +20,22 @@ export const SalesOrdersPage = () => {
   const [formData, setFormData] = useState({
     customer: "",
     warehouse: "",
-    product: "",
-    quantity: 1,
-    unitPrice: 0,
+    deliveryDate: "",
+    taxAmount: 0,
+    discountAmount: 0,
     remarks: "",
+    items: [{ product: "", quantity: 1, unitPrice: 0 }],
   });
+
+  // Inline Quick-Add Customer State
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [customerFormData, setCustomerFormData] = useState({
+    customerName: "",
+    phone: "",
+    email: "",
+    address: "",
+  });
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -52,11 +63,10 @@ export const SalesOrdersPage = () => {
       if (whList.length > 0 && !formData.warehouse) {
         setFormData((prev) => ({ ...prev, warehouse: whList[0]._id }));
       }
-      if (prodList.length > 0 && !formData.product) {
+      if (prodList.length > 0 && formData.items.length === 1 && !formData.items[0].product) {
         setFormData((prev) => ({
           ...prev,
-          product: prodList[0]._id,
-          unitPrice: prodList[0].unitPrice || 0,
+          items: [{ product: prodList[0]._id, quantity: 1, unitPrice: prodList[0].unitPrice || 0 }],
         }));
       }
     } catch (err) {
@@ -73,24 +83,113 @@ export const SalesOrdersPage = () => {
     fetchData();
   }, []);
 
-  const handleProductChange = (prodId) => {
-    const selected = products.find((p) => p._id === prodId);
+  const handleAddItemRow = () => {
+    const defaultProd = products[0];
     setFormData((prev) => ({
       ...prev,
-      product: prodId,
-      unitPrice: selected?.unitPrice || 0,
+      items: [
+        ...prev.items,
+        {
+          product: defaultProd ? defaultProd._id : "",
+          quantity: 1,
+          unitPrice: defaultProd?.unitPrice || 0,
+        },
+      ],
     }));
+  };
+
+  const handleRemoveItemRow = (index) => {
+    if (formData.items.length <= 1) return;
+    setFormData((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, idx) => idx !== index),
+    }));
+  };
+
+  const handleItemChange = (index, field, value) => {
+    const updated = [...formData.items];
+    updated[index][field] = value;
+    if (field === "product") {
+      const selected = products.find((p) => p._id === value);
+      if (selected) {
+        updated[index].unitPrice = selected.unitPrice || 0;
+      }
+    }
+    setFormData((prev) => ({ ...prev, items: updated }));
+  };
+
+  const calculateSubtotal = () => {
+    return formData.items.reduce((acc, it) => acc + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
+  };
+
+  const calculateTotal = () => {
+    const sub = calculateSubtotal();
+    const tax = Number(formData.taxAmount) || 0;
+    const disc = Number(formData.discountAmount) || 0;
+    return Math.max(0, sub + tax - disc);
+  };
+
+  const handleCreateCustomer = async (e) => {
+    e.preventDefault();
+    if (!customerFormData.customerName.trim() || !customerFormData.phone.trim()) {
+      setToast({ type: "error", message: "Customer name and phone number are required." });
+      return;
+    }
+
+    try {
+      setSavingCustomer(true);
+      const res = await axiosInstance.post("/api/customers", customerFormData);
+      const newCust = res.data?.data || res.data;
+
+      setCustomers((prev) => [newCust, ...prev]);
+      setFormData((prev) => ({ ...prev, customer: newCust._id }));
+      setIsCustomerModalOpen(false);
+      setCustomerFormData({ customerName: "", phone: "", email: "", address: "" });
+      setToast({ type: "success", message: `Customer "${newCust.customerName}" created and selected!` });
+    } catch (err) {
+      setToast({
+        type: "error",
+        message: err.response?.data?.message || "Failed to create customer.",
+      });
+    } finally {
+      setSavingCustomer(false);
+    }
   };
 
   const handleCreateOrder = async (e) => {
     e.preventDefault();
-    if (!formData.customer || !formData.warehouse || !formData.product) {
-      setToast({ type: "error", message: "Customer, warehouse, and product are required." });
+    if (!formData.customer || !formData.warehouse) {
+      setToast({ type: "error", message: "Customer and fulfillment warehouse are required." });
       return;
     }
-    if (Number(formData.quantity) <= 0) {
-      setToast({ type: "error", message: "Quantity must be greater than zero." });
+
+    if (!formData.items || formData.items.length === 0) {
+      setToast({ type: "error", message: "At least one item must be added." });
       return;
+    }
+
+    for (const it of formData.items) {
+      if (!it.product) {
+        setToast({ type: "error", message: "Please select a product for all item rows." });
+        return;
+      }
+      if (Number(it.quantity) <= 0) {
+        setToast({ type: "error", message: "Quantity for all items must be greater than zero." });
+        return;
+      }
+    }
+
+    if (formData.deliveryDate) {
+      const selectedDate = new Date(formData.deliveryDate);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      if (selectedDate < todayStart) {
+        setToast({
+          type: "error",
+          message: "Expected delivery date cannot be in the past. Please select today or a future date.",
+        });
+        return;
+      }
     }
 
     try {
@@ -98,19 +197,29 @@ export const SalesOrdersPage = () => {
       const payload = {
         customer: formData.customer,
         warehouse: formData.warehouse,
-        items: [
-          {
-            product: formData.product,
-            quantity: Number(formData.quantity),
-            unitPrice: Number(formData.unitPrice),
-          },
-        ],
+        deliveryDate: formData.deliveryDate || undefined,
+        items: formData.items.map((it) => ({
+          product: it.product,
+          quantity: Number(it.quantity),
+          unitPrice: Number(it.unitPrice),
+        })),
+        taxAmount: Number(formData.taxAmount) || 0,
+        discountAmount: Number(formData.discountAmount) || 0,
         remarks: formData.remarks,
       };
 
       await axiosInstance.post("/api/sales-orders", payload);
       setToast({ type: "success", message: "Sales order created successfully." });
       setIsModalOpen(false);
+      setFormData({
+        customer: customers[0]?._id || "",
+        warehouse: warehouses[0]?._id || "",
+        deliveryDate: "",
+        taxAmount: 0,
+        discountAmount: 0,
+        remarks: "",
+        items: [{ product: products[0]?._id || "", quantity: 1, unitPrice: products[0]?.unitPrice || 0 }],
+      });
       fetchData();
     } catch (err) {
       setToast({
@@ -361,7 +470,7 @@ export const SalesOrdersPage = () => {
         <div>
           <h1 style={{ fontSize: "24px", fontWeight: "700" }}>Sales Orders & Fulfillment</h1>
           <p style={{ color: "var(--color-slate-500)", marginTop: "4px", fontSize: "14px" }}>
-            Track client contracts, multi-warehouse stock reservation, and real-time inventory fulfillment workflows.
+            Track client contracts, multi-item line reservations, and warehouse fulfillment workflows.
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
@@ -429,6 +538,7 @@ export const SalesOrdersPage = () => {
         />
       )}
 
+      {/* Main Create Sales Order Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -457,7 +567,27 @@ export const SalesOrdersPage = () => {
         <form onSubmit={handleCreateOrder} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div className="form-grid-2">
             <div className="form-field">
-              <label>Customer / Client *</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                <label style={{ margin: 0 }}>Customer / Client *</label>
+                <button
+                  type="button"
+                  onClick={() => setIsCustomerModalOpen(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--color-primary-600)",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    fontWeight: "600",
+                    padding: 0,
+                  }}
+                >
+                  <UserPlus size={13} /> + New Customer
+                </button>
+              </div>
               <select
                 value={formData.customer}
                 onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
@@ -466,11 +596,12 @@ export const SalesOrdersPage = () => {
                 <option value="">Select customer...</option>
                 {customers.map((c) => (
                   <option key={c._id} value={c._id}>
-                    {c.customerName || c.name}
+                    {c.customerName || c.name} {c.phone ? `(${c.phone})` : ""}
                   </option>
                 ))}
               </select>
             </div>
+
             <div className="form-field">
               <label>Fulfillment Warehouse *</label>
               <select
@@ -488,44 +619,143 @@ export const SalesOrdersPage = () => {
             </div>
           </div>
 
-          <div className="form-field">
-            <label>Product *</label>
-            <select
-              value={formData.product}
-              onChange={(e) => handleProductChange(e.target.value)}
-              required
-            >
-              <option value="">Select product...</option>
-              {products.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.productName} ({p.sku}) - Price: ${p.unitPrice || 0}
-                </option>
-              ))}
-            </select>
+          {/* Dynamic Item Lines Table */}
+          <div style={{ borderTop: "1px solid var(--color-slate-200)", paddingTop: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <label style={{ fontWeight: "700", fontSize: "14px", margin: 0 }}>Order Line Items</label>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: "4px 8px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                onClick={handleAddItemRow}
+              >
+                <Plus size={13} /> Add Line Item
+              </button>
+            </div>
+
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <thead>
+                <tr style={{ background: "var(--color-slate-50)", textAlign: "left" }}>
+                  <th style={{ padding: "6px" }}>Product *</th>
+                  <th style={{ padding: "6px", width: "90px" }}>Qty *</th>
+                  <th style={{ padding: "6px", width: "110px" }}>Unit Price ($) *</th>
+                  <th style={{ padding: "6px", width: "90px", textAlign: "right" }}>Total</th>
+                  <th style={{ padding: "6px", width: "40px" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {formData.items.map((row, idx) => {
+                  const lineTotal = (Number(row.quantity) || 0) * (Number(row.unitPrice) || 0);
+                  return (
+                    <tr key={idx} style={{ borderBottom: "1px solid var(--color-slate-100)" }}>
+                      <td style={{ padding: "6px" }}>
+                        <select
+                          value={row.product}
+                          onChange={(e) => handleItemChange(idx, "product", e.target.value)}
+                          style={{ width: "100%", padding: "6px", fontSize: "12px" }}
+                          required
+                        >
+                          <option value="">Select product...</option>
+                          {products.map((p) => (
+                            <option key={p._id} value={p._id}>
+                              {p.productName} ({p.sku}) - Base: ${p.unitPrice || 0}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ padding: "6px" }}>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={row.quantity}
+                          onChange={(e) => handleItemChange(idx, "quantity", e.target.value)}
+                          style={{ width: "100%", padding: "6px", fontSize: "12px" }}
+                        />
+                      </td>
+                      <td style={{ padding: "6px" }}>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          required
+                          value={row.unitPrice}
+                          onChange={(e) => handleItemChange(idx, "unitPrice", e.target.value)}
+                          style={{ width: "100%", padding: "6px", fontSize: "12px" }}
+                        />
+                      </td>
+                      <td style={{ padding: "6px", textAlign: "right", fontWeight: "600" }}>
+                        ${lineTotal.toLocaleString()}
+                      </td>
+                      <td style={{ padding: "6px", textAlign: "center" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItemRow(idx)}
+                          disabled={formData.items.length <= 1}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: formData.items.length > 1 ? "pointer" : "not-allowed",
+                            color: formData.items.length > 1 ? "var(--color-rose-600)" : "var(--color-slate-300)",
+                            padding: "2px",
+                          }}
+                          title="Remove item"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
 
-          <div className="form-grid-2">
+          {/* Subtotal, Tax, Discount & Total Calculation */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", borderTop: "1px solid var(--color-slate-200)", paddingTop: "12px" }}>
             <div className="form-field">
-              <label>Quantity *</label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-              />
-            </div>
-            <div className="form-field">
-              <label>Unit Price ($) *</label>
+              <label>Tax Amount ($)</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
-                required
-                value={formData.unitPrice}
-                onChange={(e) => setFormData({ ...formData, unitPrice: e.target.value })}
+                value={formData.taxAmount}
+                onChange={(e) => setFormData({ ...formData, taxAmount: e.target.value })}
               />
             </div>
+            <div className="form-field">
+              <label>Discount Amount ($)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.discountAmount}
+                onChange={(e) => setFormData({ ...formData, discountAmount: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div style={{ background: "var(--color-slate-50)", padding: "10px 14px", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span style={{ fontSize: "12px", color: "var(--color-slate-500)" }}>
+                Subtotal: ${calculateSubtotal().toLocaleString()}
+              </span>
+            </div>
+            <div>
+              <span style={{ fontSize: "15px", fontWeight: "800", color: "var(--color-primary-700)" }}>
+                Order Total: ${calculateTotal().toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="form-field">
+            <label>Expected Delivery Date</label>
+            <input
+              type="date"
+              min={new Date().toISOString().split("T")[0]}
+              value={formData.deliveryDate || ""}
+              onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
+            />
           </div>
 
           <div className="form-field">
@@ -534,7 +764,77 @@ export const SalesOrdersPage = () => {
               rows="2"
               value={formData.remarks}
               onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-              placeholder="e.g. Expedited priority fulfillment requested."
+              placeholder="e.g. Standard delivery requested."
+            />
+          </div>
+        </form>
+      </Modal>
+
+      {/* Inline Quick-Add Customer Modal */}
+      <Modal
+        isOpen={isCustomerModalOpen}
+        onClose={() => setIsCustomerModalOpen(false)}
+        title="Add New Customer"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setIsCustomerModalOpen(false)}
+              disabled={savingCustomer}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleCreateCustomer}
+              disabled={savingCustomer}
+            >
+              {savingCustomer ? "Saving..." : "Create & Select"}
+            </button>
+          </>
+        }
+      >
+        <form onSubmit={handleCreateCustomer} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div className="form-field">
+            <label>Customer / Company Name *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Metro Retailers Ltd"
+              value={customerFormData.customerName}
+              onChange={(e) => setCustomerFormData({ ...customerFormData, customerName: e.target.value })}
+            />
+          </div>
+          <div className="form-grid-2">
+            <div className="form-field">
+              <label>Phone Number *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. 9876543210"
+                value={customerFormData.phone}
+                onChange={(e) => setCustomerFormData({ ...customerFormData, phone: e.target.value })}
+              />
+            </div>
+            <div className="form-field">
+              <label>Email Address</label>
+              <input
+                type="email"
+                placeholder="client@example.com"
+                value={customerFormData.email}
+                onChange={(e) => setCustomerFormData({ ...customerFormData, email: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="form-field">
+            <label>Delivery Address</label>
+            <textarea
+              rows="2"
+              placeholder="Full shipping / billing address"
+              value={customerFormData.address}
+              onChange={(e) => setCustomerFormData({ ...customerFormData, address: e.target.value })}
             />
           </div>
         </form>

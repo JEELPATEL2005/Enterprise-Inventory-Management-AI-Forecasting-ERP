@@ -1,19 +1,35 @@
 {
-  "name":"inventory-management-backend",
-  "version":"2.0.0",
-  "private":true,
-  "main":"server.js",
-  "scripts":{"start":"node server.js","dev":"nodemon server.js","check":"node --check server.js"},
-  "dependencies":{
-    "bcryptjs":"^3.0.3",
-    "cookie-parser":"^1.4.7",
-    "cors":"^2.8.6",
-    "dotenv":"^17.4.2",
-    "express":"^5.2.1",
-    "jsonwebtoken":"^9.0.3",
-    "mongoose":"^9.9.3",
-    "multer":"^2.2.0",
-    "node-cron":"^4.6.0"
+  "name": "inventory-management-backend",
+  "version": "2.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "start:ai": "run_ai.bat",
+    "test:ai": "test_ai.bat",
+    "check": "node --check server.js",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand"
   },
-  "devDependencies":{"nodemon":"^3.1.14"}
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.3",
+    "multer": "^2.2.0",
+    "node-cron": "^4.6.0",
+    "nodemailer": "^10.3.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.5.2",
+    "mongodb-memory-server": "^11.3.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.3.0"
+  }
 }

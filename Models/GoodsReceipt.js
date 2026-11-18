@@ -2,16 +2,26 @@ const mongoose = require("mongoose");
 
 const goodsReceiptSchema = new mongoose.Schema(
   {
+    grnNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      default: () => `GRN-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+    },
+
     purchaseOrder: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PurchaseOrder",
       required: true,
+      index: true,
     },
 
     warehouse: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Warehouse",
       required: true,
+      index: true,
     },
 
     receivedBy: {
@@ -23,6 +33,13 @@ const goodsReceiptSchema = new mongoose.Schema(
     receiptDate: {
       type: Date,
       default: Date.now,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Goods receipt date cannot be in the future.",
+      },
     },
 
     items: [
@@ -45,7 +62,19 @@ const goodsReceiptSchema = new mongoose.Schema(
           min: 0,
         },
 
+        acceptedQuantity: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+
         damagedQuantity: {
+          type: Number,
+          default: 0,
+          min: 0,
+        },
+
+        rejectedQuantity: {
           type: Number,
           default: 0,
           min: 0,
@@ -60,7 +89,7 @@ const goodsReceiptSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 module.exports = mongoose.model("GoodsReceipt", goodsReceiptSchema);

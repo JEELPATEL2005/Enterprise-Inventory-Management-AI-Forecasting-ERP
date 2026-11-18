@@ -4,6 +4,14 @@ const { normalizeRole } = require("./roleMiddleware");
 
 const authenticate = async (req, res, next) => {
   try {
+    // Exclude public vendor response endpoints from bearer token requirement (Phase 7.4)
+    if (
+      req.path.startsWith("/purchase-orders/vendor-response") ||
+      req.path.startsWith("/purchases/vendor-response")
+    ) {
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
@@ -24,8 +32,8 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    // Verify employee exists and is active
-    const employee = await Employee.findById(decoded.id).select("status");
+    // Verify employee exists and is active, and fetch fresh assigned warehouses
+    const employee = await Employee.findById(decoded.id).select("status assignedWarehouses");
     if (!employee || employee.status !== "ACTIVE") {
       return res.status(403).json({
         success: false,
@@ -35,6 +43,7 @@ const authenticate = async (req, res, next) => {
 
     req.user = {
       ...decoded,
+      assignedWarehouses: (employee.assignedWarehouses || []).map((w) => String(w)),
       roleName: normalizeRole(decoded.roleName),
       originalRoleName: decoded.roleName,
     };

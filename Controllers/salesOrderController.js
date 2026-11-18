@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const SalesOrder = require("../Models/SalesOrder");
 const Customer = require("../Models/Customer");
 const Product = require("../Models/Product");
@@ -5,9 +6,12 @@ const Warehouse = require("../Models/Warehouse");
 const Inventory = require("../Models/Inventory");
 const StockMovement = require("../Models/StockMovement");
 const Invoice = require("../Models/Invoice");
+const Delivery = require("../Models/Delivery");
 const { validId } = require("../Utils/crudController");
 const { logAudit } = require("../Utils/auditLogger");
 const { runInTransaction } = require("../Utils/dbTransactions");
+const { checkWarehouseAccess, getAuthorizedWarehouseFilter } = require("../Middleware/warehouseAuthMiddleware");
+const { normalizeRole, ROLES } = require("../Middleware/roleMiddleware");
 
 const create = async (req, res, next) => {
   try {
@@ -75,11 +79,31 @@ const create = async (req, res, next) => {
       ? b.status.toUpperCase()
       : "PENDING";
 
+    // Validate delivery date if provided
+    let parsedDeliveryDate = undefined;
+    const rawDeliveryDate = b.deliveryDate || b.expectedDeliveryDate;
+    if (rawDeliveryDate) {
+      const dDate = new Date(rawDeliveryDate);
+      if (isNaN(dDate.getTime())) {
+        return res.status(400).json({ success: false, message: "Invalid delivery date format." });
+      }
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      if (dDate < todayStart) {
+        return res.status(400).json({
+          success: false,
+          message: "Sales order expected delivery date cannot be in the past. Please select today or a future date.",
+        });
+      }
+      parsedDeliveryDate = dDate;
+    }
+
     const d = await SalesOrder.create({
       salesOrderNumber: b.salesOrderNumber || `SO-${Date.now()}`,
       customer: customerDoc._id,
       warehouse: whDoc._id,
       createdBy: req.user?.id,
+      deliveryDate: parsedDeliveryDate,
       items,
       subtotal,
       taxAmount: tax,
@@ -112,22 +136,47 @@ const create = async (req, res, next) => {
 
 const list = async (req, res, next) => {
   try {
-    const d = await SalesOrder.find(req.query)
+    const q = { ...req.query };
+    const userRole = normalizeRole(req.user?.roleName);
+    const assignedFilter = await getAuthorizedWarehouseFilter(req.user);
+
+    if (req.query.warehouse) {
+      if (userRole === ROLES.WAREHOUSE_MANAGER) {
+        const access = await checkWarehouseAccess(req.user, req.query.warehouse, { requireMutation: false });
+        if (!access.allowed) {
+          return res.status(access.status || 403).json({ success: false, message: access.message });
+        }
+      }
+      q.warehouse = req.query.warehouse;
+    } else if (userRole === ROLES.WAREHOUSE_MANAGER && assignedFilter !== null) {
+      q.warehouse = { $in: assignedFilter.map((id) => new mongoose.Types.ObjectId(id)) };
+    }
+
+    const d = await SalesOrder.find(q)
       .populate("customer", "customerName phone email")
       .populate("warehouse", "warehouseName")
       .populate("items.product", "productName sku")
       .sort({ createdAt: -1 });
 
     const orderIds = d.map((o) => o._id);
-    const invoices = await Invoice.find({ salesOrder: { $in: orderIds } }).select(
-      "_id salesOrder invoiceNumber status paymentStatus totalAmount"
-    );
+    const [invoices, deliveries] = await Promise.all([
+      Invoice.find({ salesOrder: { $in: orderIds } }).select(
+        "_id salesOrder invoiceNumber status paymentStatus totalAmount"
+      ),
+      Delivery.find({ salesOrder: { $in: orderIds } }).select(
+        "_id salesOrder deliveryNumber status deliveredAt updatedAt"
+      ),
+    ]);
     const invoiceMap = new Map();
     invoices.forEach((inv) => invoiceMap.set(String(inv.salesOrder), inv));
+
+    const deliveryMap = new Map();
+    deliveries.forEach((del) => deliveryMap.set(String(del.salesOrder), del));
 
     const enriched = d.map((order) => {
       const orderObj = order.toObject();
       orderObj.invoice = invoiceMap.get(String(order._id)) || null;
+      orderObj.delivery = deliveryMap.get(String(order._id)) || null;
       return orderObj;
     });
 
@@ -144,6 +193,14 @@ const get = async (req, res, next) => {
       .populate("warehouse", "warehouseName location")
       .populate("items.product");
     if (!d) return res.status(404).json({ success: false, message: "Sales order not found" });
+
+    const userRole = normalizeRole(req.user?.roleName);
+    if (userRole === ROLES.WAREHOUSE_MANAGER) {
+      const access = await checkWarehouseAccess(req.user, d.warehouse?._id || d.warehouse, { requireMutation: false });
+      if (!access.allowed) {
+        return res.status(access.status || 403).json({ success: false, message: access.message });
+      }
+    }
 
     const inv = await Invoice.findOne({ salesOrder: d._id });
     const orderObj = d.toObject();
@@ -254,6 +311,18 @@ const fulfill = async (req, res, next) => {
         success: false,
         message: "Order must have reserved stock before fulfillment",
       });
+    }
+
+    const userRole = normalizeRole(req.user?.roleName);
+    if (userRole === ROLES.WAREHOUSE_MANAGER) {
+      const access = await checkWarehouseAccess(req.user, d.warehouse, {
+        requireMutation: true,
+      });
+      if (!access.allowed) {
+        return res
+          .status(access.status || 403)
+          .json({ success: false, message: access.message });
+      }
     }
 
     await runInTransaction(async (session) => {
@@ -416,6 +485,9 @@ const invoice = async (req, res, next) => {
       taxAmount: order.taxAmount || 0,
       discountAmount: order.discountAmount || 0,
       totalAmount: order.totalAmount || 0,
+      amountPaid: 0,
+      balanceDue: order.totalAmount || 0,
+      payments: [],
       status: "ISSUED",
       paymentStatus: "UNPAID",
       createdBy: req.user?.id,

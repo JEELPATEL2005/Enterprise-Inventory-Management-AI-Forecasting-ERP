@@ -7,6 +7,7 @@ const { ROLES } = authorize;
 router.post("/", authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER), c.create);
 router.get("/", authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER), c.list);
 router.get("/:id", authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER), c.get);
+router.get("/:id/orders", authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER), c.getOrders);
 router.put("/:id", authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER), c.update);
 router.delete("/:id", authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER), c.remove);
 

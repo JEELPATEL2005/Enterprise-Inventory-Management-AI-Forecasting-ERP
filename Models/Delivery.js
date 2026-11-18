@@ -57,15 +57,45 @@ const deliverySchema = new mongoose.Schema(
     assignedAt: {
       type: Date,
       default: Date.now,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Assignment timestamp cannot be in the future.",
+      },
     },
     dispatchedAt: {
       type: Date,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Dispatch timestamp cannot be in the future.",
+      },
     },
     deliveredAt: {
       type: Date,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          if (v > new Date(Date.now() + 60000)) return false;
+          if (this.dispatchedAt && v < this.dispatchedAt) return false;
+          return true;
+        },
+        message: "Delivery timestamp cannot be in the future or prior to dispatch.",
+      },
     },
     failedAt: {
       type: Date,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Failure timestamp cannot be in the future.",
+      },
     },
     failureReason: {
       type: String,

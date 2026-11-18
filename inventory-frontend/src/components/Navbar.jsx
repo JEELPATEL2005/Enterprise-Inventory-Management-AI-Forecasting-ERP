@@ -21,6 +21,8 @@ const pageTitleMap = {
     "/purchase/reports": { module: "Procurement", title: "Spend Analytics" },
 
     "/warehouse/dashboard": { module: "Warehouse", title: "WMS Hub" },
+    "/warehouse/requests": { module: "Warehouse", title: "Purchase Requests" },
+    "/warehouse/purchase-requests": { module: "Warehouse", title: "Purchase Requests" },
     "/warehouse/list": { module: "Warehouse", title: "Storage Facilities" },
     "/warehouse/inventory": { module: "Warehouse", title: "Bin Storage Inventory" },
     "/warehouse/transfers": { module: "Warehouse", title: "Inter-Warehouse Transfers" },
@@ -50,6 +52,8 @@ const pageTitleMap = {
     "/delivery/assigned": { module: "Logistics", title: "Assigned Delivery Dispatches" },
     "/delivery/tracking": { module: "Logistics", title: "Live Fleet GPS Tracking" },
     "/delivery/history": { module: "Logistics", title: "Delivery History & e-POD" },
+
+    "/ai/assistant": { module: "Intelligence", title: "Enterprise AI Assistant" },
 };
 
 const Navbar = () => {

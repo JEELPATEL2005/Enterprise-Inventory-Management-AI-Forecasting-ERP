@@ -109,12 +109,17 @@ const rolesConfig = [
     description: "Warehouse manager controlling storage facilities, stock movements, adjustments, and receiving",
     permissions: [
       "warehouse.view",
+      "warehouse.manage",
       "inventory.view",
       "inventory.manage",
       "product.view",
+      "product.manage",
       "category.view",
+      "category.manage",
       "brand.view",
+      "brand.manage",
       "variant.view",
+      "variant.manage",
       "stock.in",
       "stock.out",
       "stock.adjust",
@@ -126,6 +131,8 @@ const rolesConfig = [
       "goods_receipt.view",
       "stock.audit.perform",
       "stock.damaged.handle",
+      "purchase_request.create",
+      "purchase_request.view",
       "purchase_order.view",
       "sales_order.view",
       "warehouse.report.view",
@@ -274,6 +281,18 @@ async function seedDatabase() {
         await emp.save();
         console.log(`Assigned employee ${emp.email} to department fallback role ${fallbackRole}`);
       }
+    }
+
+    // 5. Ensure Main Warehouse Manager has access across all active storage facilities
+    const Warehouse = require("./Models/Warehouse");
+    const allWarehouses = await Warehouse.find().select("_id");
+    if (allWarehouses.length > 0) {
+      const allWhIds = allWarehouses.map((w) => w._id);
+      await Employee.findOneAndUpdate(
+        { email: (process.env.WAREHOUSE_EMAIL || "warehouse@erp.com").toLowerCase() },
+        { assignedWarehouses: allWhIds }
+      );
+      console.log(`Assigned all ${allWhIds.length} storage facilities to main Warehouse Manager.`);
     }
 
     console.log("Database seed & RBAC stabilization completed successfully.");

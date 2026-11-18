@@ -23,6 +23,26 @@ const stockTransferSchema = new mongoose.Schema(
     transferDate: {
       type: Date,
       default: Date.now,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Transfer date cannot be in the future.",
+      },
+    },
+    expectedArrivalDate: {
+      type: Date,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          if (this.isModified && !this.isModified("expectedArrivalDate")) return true;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return v >= today;
+        },
+        message: "Expected arrival date cannot be in the past.",
+      },
     },
 
     items: [
@@ -67,6 +87,13 @@ const stockTransferSchema = new mongoose.Schema(
 
     completedAt: {
       type: Date,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Completion timestamp cannot be in the future.",
+      },
     },
   },
   {

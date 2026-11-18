@@ -3,16 +3,20 @@ const c = require("../Controllers/purchaseController");
 const authorize = require("../Middleware/roleMiddleware");
 const { ROLES } = authorize;
 
+// Public Vendor Response Endpoints (Phase 7.4 - No Login Required)
+router.get("/vendor-response/:token", c.getVendorResponseByToken);
+router.post("/vendor-response/:token", c.submitVendorResponse);
+
 // View Purchase Orders
 router.get(
   "/",
-  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER, ROLES.WAREHOUSE_MANAGER),
+  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.SALES_MANAGER),
   c.list
 );
 
 router.get(
   "/:id",
-  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER, ROLES.WAREHOUSE_MANAGER),
+  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.SALES_MANAGER),
   c.get
 );
 
@@ -27,6 +31,18 @@ router.put(
   "/:id/approve",
   authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER),
   c.approve
+);
+
+router.post(
+  "/:id/send-email",
+  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER),
+  c.sendEmail
+);
+
+router.post(
+  "/:id/email",
+  authorize(ROLES.SUPER_ADMIN, ROLES.PURCHASE_MANAGER),
+  c.sendEmail
 );
 
 router.put(

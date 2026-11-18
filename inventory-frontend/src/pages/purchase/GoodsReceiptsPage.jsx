@@ -31,10 +31,10 @@ export const GoodsReceiptsPage = () => {
   const columns = [
     {
       header: "GRN Reference",
-      accessor: "_id",
-      render: (val) => (
+      accessor: "grnNumber",
+      render: (val, row) => (
         <span style={{ fontWeight: "700", color: "var(--color-primary-700)" }}>
-          GRN-{String(val).slice(-6).toUpperCase()}
+          {val || `GRN-${String(row._id).slice(-6).toUpperCase()}`}
         </span>
       ),
     },

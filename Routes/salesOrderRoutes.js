@@ -3,16 +3,16 @@ const c = require("../Controllers/salesOrderController");
 const authorize = require("../Middleware/roleMiddleware");
 const { ROLES } = authorize;
 
-// View sales orders: Super Admin, Sales Manager, Warehouse Manager (for fulfillment/picking)
+// View sales orders: Super Admin, Sales Manager, Warehouse Manager, Purchase Manager
 router.get(
   "/",
-  authorize(ROLES.SUPER_ADMIN, ROLES.SALES_MANAGER, ROLES.WAREHOUSE_MANAGER),
+  authorize(ROLES.SUPER_ADMIN, ROLES.SALES_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.PURCHASE_MANAGER),
   c.list
 );
 
 router.get(
   "/:id",
-  authorize(ROLES.SUPER_ADMIN, ROLES.SALES_MANAGER, ROLES.WAREHOUSE_MANAGER),
+  authorize(ROLES.SUPER_ADMIN, ROLES.SALES_MANAGER, ROLES.WAREHOUSE_MANAGER, ROLES.PURCHASE_MANAGER),
   c.get
 );
 
@@ -35,9 +35,10 @@ router.put(
   c.reserve
 );
 
+// Fulfill / Dispatch: Warehouse Manager can dispatch, as well as Super Admin & Sales Manager
 router.put(
   "/:id/fulfill",
-  authorize(ROLES.SUPER_ADMIN, ROLES.SALES_MANAGER),
+  authorize(ROLES.SUPER_ADMIN, ROLES.SALES_MANAGER, ROLES.WAREHOUSE_MANAGER),
   c.fulfill
 );
 

@@ -3,6 +3,7 @@ const ROLES = {
   PURCHASE_MANAGER: "PURCHASE_MANAGER",
   WAREHOUSE_MANAGER: "WAREHOUSE_MANAGER",
   SALES_MANAGER: "SALES_MANAGER",
+  CENTRAL_WAREHOUSE_OPERATIONS_MANAGER: "CENTRAL_WAREHOUSE_OPERATIONS_MANAGER",
 };
 
 const ALLOWED_LOGIN_ROLES = [
@@ -10,6 +11,7 @@ const ALLOWED_LOGIN_ROLES = [
   ROLES.PURCHASE_MANAGER,
   ROLES.WAREHOUSE_MANAGER,
   ROLES.SALES_MANAGER,
+  ROLES.CENTRAL_WAREHOUSE_OPERATIONS_MANAGER,
 ];
 
 const normalizeRole = (str) => {
@@ -30,11 +32,28 @@ const normalizeRole = (str) => {
   if (cleaned === "PURCHASE_MANAGER" || cleaned === "PURCHASE") {
     return ROLES.PURCHASE_MANAGER;
   }
-  if (cleaned === "WAREHOUSE_MANAGER" || cleaned === "WAREHOUSE") {
+  if (
+    cleaned === "WAREHOUSE_MANAGER" ||
+    cleaned === "WAREHOUSE" ||
+    cleaned === "INVENTORY_STAFF" ||
+    cleaned === "INVENTORY"
+  ) {
     return ROLES.WAREHOUSE_MANAGER;
   }
-  if (cleaned === "SALES_MANAGER" || cleaned === "SALES") {
+  if (
+    cleaned === "SALES_MANAGER" ||
+    cleaned === "SALES" ||
+    cleaned === "DELIVERY_STAFF" ||
+    cleaned === "DELIVERY"
+  ) {
     return ROLES.SALES_MANAGER;
+  }
+  if (
+    cleaned === "CENTRAL_WAREHOUSE_OPERATIONS_MANAGER" ||
+    cleaned === "CENTRAL_OPERATIONS" ||
+    cleaned === "CENTRAL_WAREHOUSE_MANAGER"
+  ) {
+    return ROLES.CENTRAL_WAREHOUSE_OPERATIONS_MANAGER;
   }
 
   return cleaned;

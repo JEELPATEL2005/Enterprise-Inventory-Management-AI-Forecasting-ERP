@@ -6,6 +6,10 @@ const Warehouse = require("../Models/Warehouse");
 const { validId } = require("../Utils/crudController");
 const { logAudit } = require("../Utils/auditLogger");
 const { runInTransaction } = require("../Utils/dbTransactions");
+const {
+  checkWarehouseAccess,
+  getAuthorizedWarehouseFilter,
+} = require("../Middleware/warehouseAuthMiddleware");
 
 // 1. List inventory across warehouses or by query
 const list = async (req, res, next) => {
@@ -15,7 +19,23 @@ const list = async (req, res, next) => {
       q.product = req.query.product;
     }
     if (req.query.warehouse) {
+      const access = await checkWarehouseAccess(req.user, req.query.warehouse, {
+        requireMutation: false,
+      });
+      if (!access.allowed) {
+        return res
+          .status(access.status || 403)
+          .json({ success: false, message: access.message });
+      }
       q.warehouse = req.query.warehouse;
+    } else {
+      // If user is a Warehouse Manager and no warehouse specified, filter to assigned warehouses
+      const assignedFilter = await getAuthorizedWarehouseFilter(req.user);
+      if (assignedFilter !== null) {
+        q.warehouse = {
+          $in: assignedFilter.map((id) => new mongoose.Types.ObjectId(id)),
+        };
+      }
     }
 
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -71,6 +91,13 @@ const get = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Inventory record not found." });
     }
 
+    const access = await checkWarehouseAccess(req.user, doc.warehouse?._id || doc.warehouse, {
+      requireMutation: false,
+    });
+    if (!access.allowed) {
+      return res.status(access.status || 403).json({ success: false, message: access.message });
+    }
+
     res.json({ success: true, data: doc });
   } catch (e) {
     next(e);
@@ -83,6 +110,15 @@ const getByWarehouse = async (req, res, next) => {
     const { warehouseId } = req.params;
     if (!validId(warehouseId)) {
       return res.status(400).json({ success: false, message: "Invalid warehouse ID." });
+    }
+
+    const access = await checkWarehouseAccess(req.user, warehouseId, {
+      requireMutation: false,
+    });
+    if (!access.allowed) {
+      return res
+        .status(access.status || 403)
+        .json({ success: false, message: access.message });
     }
 
     const wh = await Warehouse.findById(warehouseId);
@@ -124,6 +160,15 @@ const getByWarehouseProduct = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Invalid warehouse or product ID." });
     }
 
+    const access = await checkWarehouseAccess(req.user, warehouseId, {
+      requireMutation: false,
+    });
+    if (!access.allowed) {
+      return res
+        .status(access.status || 403)
+        .json({ success: false, message: access.message });
+    }
+
     const doc = await Inventory.findOne({ warehouse: warehouseId, product: productId })
       .populate("product")
       .populate("warehouse");
@@ -160,11 +205,30 @@ const upsert = async (req, res, next) => {
     const targetProduct = product || productId;
     const targetWarehouse = warehouse || warehouseId;
 
+    if (req.body.movementDate || req.body.date) {
+      const md = new Date(req.body.movementDate || req.body.date);
+      if (isNaN(md.getTime())) {
+        return res.status(400).json({ success: false, message: "Invalid date format." });
+      }
+      if (md > new Date()) {
+        return res.status(400).json({ success: false, message: "Stock movement date cannot be in the future." });
+      }
+    }
+
     if (!validId(targetProduct) || !validId(targetWarehouse)) {
       return res.status(400).json({
         success: false,
         message: "Valid product and warehouse IDs are required.",
       });
+    }
+
+    const access = await checkWarehouseAccess(req.user, targetWarehouse, {
+      requireMutation: true,
+    });
+    if (!access.allowed) {
+      return res
+        .status(access.status || 403)
+        .json({ success: false, message: access.message });
     }
 
     const prodDoc = await Product.findById(targetProduct);
@@ -228,7 +292,27 @@ const stockIn = async (req, res, next) => {
 
     const targetProduct = product || productId;
     const targetWarehouse = warehouse || warehouseId;
+
+    if (req.body.movementDate || req.body.date) {
+      const md = new Date(req.body.movementDate || req.body.date);
+      if (isNaN(md.getTime())) {
+        return res.status(400).json({ success: false, message: "Invalid date format." });
+      }
+      if (md > new Date()) {
+        return res.status(400).json({ success: false, message: "Stock movement date cannot be in the future." });
+      }
+    }
     const qty = Number(quantity);
+
+    if (req.body.movementDate || req.body.date) {
+      const md = new Date(req.body.movementDate || req.body.date);
+      if (isNaN(md.getTime())) {
+        return res.status(400).json({ success: false, message: "Invalid date format." });
+      }
+      if (md > new Date()) {
+        return res.status(400).json({ success: false, message: "Stock movement date cannot be in the future." });
+      }
+    }
 
     if (!targetProduct || !targetWarehouse || isNaN(qty) || qty <= 0) {
       return res.status(400).json({
@@ -239,6 +323,15 @@ const stockIn = async (req, res, next) => {
 
     if (!validId(targetProduct) || !validId(targetWarehouse)) {
       return res.status(400).json({ success: false, message: "Invalid product or warehouse ID." });
+    }
+
+    const access = await checkWarehouseAccess(req.user, targetWarehouse, {
+      requireMutation: true,
+    });
+    if (!access.allowed) {
+      return res
+        .status(access.status || 403)
+        .json({ success: false, message: access.message });
     }
 
     const prodDoc = await Product.findById(targetProduct);
@@ -359,7 +452,27 @@ const stockOut = async (req, res, next) => {
 
     const targetProduct = product || productId;
     const targetWarehouse = warehouse || warehouseId;
+
+    if (req.body.movementDate || req.body.date) {
+      const md = new Date(req.body.movementDate || req.body.date);
+      if (isNaN(md.getTime())) {
+        return res.status(400).json({ success: false, message: "Invalid date format." });
+      }
+      if (md > new Date()) {
+        return res.status(400).json({ success: false, message: "Stock movement date cannot be in the future." });
+      }
+    }
     const qty = Number(quantity);
+
+    if (req.body.movementDate || req.body.date) {
+      const md = new Date(req.body.movementDate || req.body.date);
+      if (isNaN(md.getTime())) {
+        return res.status(400).json({ success: false, message: "Invalid date format." });
+      }
+      if (md > new Date()) {
+        return res.status(400).json({ success: false, message: "Stock movement date cannot be in the future." });
+      }
+    }
 
     if (!targetProduct || !targetWarehouse || isNaN(qty) || qty <= 0) {
       return res.status(400).json({
@@ -370,6 +483,15 @@ const stockOut = async (req, res, next) => {
 
     if (!validId(targetProduct) || !validId(targetWarehouse)) {
       return res.status(400).json({ success: false, message: "Invalid product or warehouse ID." });
+    }
+
+    const access = await checkWarehouseAccess(req.user, targetWarehouse, {
+      requireMutation: true,
+    });
+    if (!access.allowed) {
+      return res
+        .status(access.status || 403)
+        .json({ success: false, message: access.message });
     }
 
     const prodDoc = await Product.findById(targetProduct);
@@ -475,6 +597,16 @@ const adjust = async (req, res, next) => {
     const targetProduct = product || productId;
     const targetWarehouse = warehouse || warehouseId;
 
+    if (req.body.movementDate || req.body.date) {
+      const md = new Date(req.body.movementDate || req.body.date);
+      if (isNaN(md.getTime())) {
+        return res.status(400).json({ success: false, message: "Invalid date format." });
+      }
+      if (md > new Date()) {
+        return res.status(400).json({ success: false, message: "Stock movement date cannot be in the future." });
+      }
+    }
+
     let targetInvId = req.params.id;
     let invRecord = null;
 
@@ -489,6 +621,15 @@ const adjust = async (req, res, next) => {
         success: false,
         message: "Inventory record not found for adjustment.",
       });
+    }
+
+    const access = await checkWarehouseAccess(req.user, invRecord.warehouse, {
+      requireMutation: true,
+    });
+    if (!access.allowed) {
+      return res
+        .status(access.status || 403)
+        .json({ success: false, message: access.message });
     }
 
     const newQty = Number(quantity);
@@ -578,13 +719,42 @@ const recordDamaged = async (req, res, next) => {
     const { product, productId, warehouse, warehouseId, quantity, reason } = req.body;
     const targetProduct = product || productId;
     const targetWarehouse = warehouse || warehouseId;
+
+    if (req.body.movementDate || req.body.date) {
+      const md = new Date(req.body.movementDate || req.body.date);
+      if (isNaN(md.getTime())) {
+        return res.status(400).json({ success: false, message: "Invalid date format." });
+      }
+      if (md > new Date()) {
+        return res.status(400).json({ success: false, message: "Stock movement date cannot be in the future." });
+      }
+    }
     const qty = Number(quantity);
+
+    if (req.body.movementDate || req.body.date) {
+      const md = new Date(req.body.movementDate || req.body.date);
+      if (isNaN(md.getTime())) {
+        return res.status(400).json({ success: false, message: "Invalid date format." });
+      }
+      if (md > new Date()) {
+        return res.status(400).json({ success: false, message: "Stock movement date cannot be in the future." });
+      }
+    }
 
     if (!targetProduct || !targetWarehouse || isNaN(qty) || qty <= 0) {
       return res.status(400).json({
         success: false,
         message: "Valid product, warehouse, and positive quantity are required.",
       });
+    }
+
+    const access = await checkWarehouseAccess(req.user, targetWarehouse, {
+      requireMutation: true,
+    });
+    if (!access.allowed) {
+      return res
+        .status(access.status || 403)
+        .json({ success: false, message: access.message });
     }
 
     const inv = await Inventory.findOne({ product: targetProduct, warehouse: targetWarehouse });

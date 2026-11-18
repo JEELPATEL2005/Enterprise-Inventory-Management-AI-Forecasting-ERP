@@ -120,10 +120,10 @@ export const WarehouseInventoryPage = () => {
             value={selectedWarehouse}
             onChange={(e) => setSelectedWarehouse(e.target.value)}
           >
-            <option value="">All Warehouses</option>
+            <option value="">All Authorized Facilities</option>
             {warehouses.map((w) => (
               <option key={w._id} value={w._id}>
-                {w.warehouseName}
+                {w.warehouseName} {w.isAssigned ? "★ (Your Facility)" : ""}
               </option>
             ))}
           </select>

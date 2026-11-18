@@ -245,13 +245,37 @@ const updateStatus = async (req, res, next) => {
     if (remarks) delivery.remarks = remarks;
 
     if (newStatus === "IN_TRANSIT") {
-      delivery.dispatchedAt = new Date();
+      let dispatchedAt = new Date();
+      if (req.body.dispatchedAt) {
+        const d = new Date(req.body.dispatchedAt);
+        if (isNaN(d.getTime())) return res.status(400).json({ success: false, message: "Invalid dispatchedAt date format." });
+        if (d > new Date()) return res.status(400).json({ success: false, message: "dispatchedAt cannot be in the future." });
+        dispatchedAt = d;
+      }
+      delivery.dispatchedAt = dispatchedAt;
       await SalesOrder.findByIdAndUpdate(delivery.salesOrder, { status: "SHIPPED" });
     } else if (newStatus === "DELIVERED") {
-      delivery.deliveredAt = new Date();
+      let deliveredAt = new Date();
+      if (req.body.deliveredAt) {
+        const d = new Date(req.body.deliveredAt);
+        if (isNaN(d.getTime())) return res.status(400).json({ success: false, message: "Invalid deliveredAt date format." });
+        if (d > new Date()) return res.status(400).json({ success: false, message: "deliveredAt cannot be in the future." });
+        if (delivery.dispatchedAt && d < delivery.dispatchedAt) {
+          return res.status(400).json({ success: false, message: "deliveredAt cannot be earlier than dispatchedAt." });
+        }
+        deliveredAt = d;
+      }
+      delivery.deliveredAt = deliveredAt;
       await SalesOrder.findByIdAndUpdate(delivery.salesOrder, { status: "DELIVERED" });
     } else if (newStatus === "FAILED") {
-      delivery.failedAt = new Date();
+      let failedAt = new Date();
+      if (req.body.failedAt) {
+        const d = new Date(req.body.failedAt);
+        if (isNaN(d.getTime())) return res.status(400).json({ success: false, message: "Invalid failedAt date format." });
+        if (d > new Date()) return res.status(400).json({ success: false, message: "failedAt cannot be in the future." });
+        failedAt = d;
+      }
+      delivery.failedAt = failedAt;
       delivery.failureReason = failureReason || "Delivery attempt failed";
     }
 

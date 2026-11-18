@@ -33,7 +33,30 @@ const salesOrderSchema = new mongoose.Schema(
       required: true,
     },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "Employee" },
-    orderDate: { type: Date, default: Date.now },
+    orderDate: {
+      type: Date,
+      default: Date.now,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Sales order date cannot be in the future.",
+      },
+    },
+    deliveryDate: {
+      type: Date,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          if (this.isModified && !this.isModified("deliveryDate")) return true;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return v >= today;
+        },
+        message: "Delivery date cannot be in the past. Please select today or a future date.",
+      },
+    },
     items: { type: [itemSchema], validate: (v) => v.length > 0 },
     subtotal: { type: Number, default: 0, min: 0 },
     taxAmount: { type: Number, default: 0, min: 0 },

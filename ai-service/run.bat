@@ -1,0 +1,3 @@
+@echo off
+echo Starting InventoryPro AI Assistant Microservice on port 8000...
+"C:\Users\Jeel Patel\AppData\Local\Programs\Python\Python313\python.exe" "%~dp0main.py"

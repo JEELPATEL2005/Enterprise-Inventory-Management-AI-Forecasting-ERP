@@ -8,6 +8,19 @@ const vendorSchema = new mongoose.Schema(
       trim: true,
     },
 
+    contactPerson: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    gstNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
+
     phone: {
       type: String,
       required: [true, "Phone number is required"],

@@ -57,10 +57,13 @@ const routes = {
   "/api/reservations": require("./Routes/reservationRoutes"),
   "/api/deliveries": require("./Routes/deliveryRoutes"),
   "/api/returns": require("./Routes/returnRoutes"),
+  "/api/sales-returns": require("./Routes/returnRoutes"),
   "/api/audit-logs": require("./Routes/auditLogRoutes"),
   "/api/settings": require("./Routes/companySettingsRoutes"),
   "/api/company-settings": require("./Routes/companySettingsRoutes"),
   "/api/goods-receipts": require("./Routes/goodsReceiptRoutes"),
+  "/api/ai": require("./Routes/aiRoutes"),
+  "/api/forecast": require("./Routes/forecastRoutes"),
 };
 Object.entries(routes).forEach(([path, router]) => app.use(path, router));
 

@@ -1,5 +1,46 @@
 const mongoose = require("mongoose");
 
+const invoicePaymentSchema = new mongoose.Schema(
+  {
+    amount: {
+      type: Number,
+      required: true,
+      min: 0.01,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["CASH", "CARD", "BANK_TRANSFER", "UPI", "CREDIT", "OTHER"],
+      default: "BANK_TRANSFER",
+    },
+    transactionRef: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    paymentDate: {
+      type: Date,
+      default: Date.now,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Payment date cannot be in the future.",
+      },
+    },
+    recordedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+  },
+  { timestamps: true }
+);
+
 const invoiceItemSchema = new mongoose.Schema(
   {
     product: {
@@ -40,6 +81,13 @@ const invoiceSchema = new mongoose.Schema(
     invoiceDate: {
       type: Date,
       default: Date.now,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Invoice date cannot be in the future.",
+      },
     },
 
     subtotal: {
@@ -66,6 +114,20 @@ const invoiceSchema = new mongoose.Schema(
       min: 0,
     },
 
+    amountPaid: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    balanceDue: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    payments: [invoicePaymentSchema],
+
     status: {
       type: String,
       enum: ["DRAFT", "ISSUED", "PAID", "CANCELLED"],
@@ -80,7 +142,7 @@ const invoiceSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["CASH", "CARD", "BANK_TRANSFER", "UPI", "CREDIT"],
+      enum: ["CASH", "CARD", "BANK_TRANSFER", "UPI", "CREDIT", "OTHER"],
     },
 
     createdBy: {
@@ -90,12 +152,25 @@ const invoiceSchema = new mongoose.Schema(
 
     paidAt: {
       type: Date,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Paid timestamp cannot be in the future.",
+      },
     },
   },
   {
     timestamps: true,
   },
 );
+
+invoiceSchema.pre("save", function () {
+  if (this.balanceDue === undefined || this.isNew) {
+    this.balanceDue = Math.max(0, (this.totalAmount || 0) - (this.amountPaid || 0));
+  }
+});
 
 module.exports = mongoose.model("Invoice", invoiceSchema);
 

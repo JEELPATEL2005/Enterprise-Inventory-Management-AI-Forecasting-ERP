@@ -49,6 +49,12 @@ const inventorySchema = new mongoose.Schema(
       default: 0,
       min: [0, "Damaged stock cannot be negative"],
     },
+
+    repairStock: {
+      type: Number,
+      default: 0,
+      min: [0, "Repair stock cannot be negative"],
+    },
   },
   {
     timestamps: true,

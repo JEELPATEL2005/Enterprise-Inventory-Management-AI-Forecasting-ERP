@@ -26,7 +26,9 @@ import {
     RotateCcw,
     Package,
     Warehouse,
-    ShoppingCart
+    ShoppingCart,
+    Sparkles,
+    TrendingUp
 } from "lucide-react";
 import { normalizeRole, getRoleDisplayName, ROLES } from "../utils/roles";
 
@@ -41,6 +43,7 @@ const moduleDefinitions = {
             { label: "Company Settings", path: "/admin/settings", icon: Settings },
             { label: "System Config", path: "/admin/config", icon: Sliders },
             { label: "Audit Logs", path: "/admin/audit", icon: FileText },
+            { label: "Vendor Debit Notes", path: "/admin/debit-notes", icon: RotateCcw },
             { label: "Global Reports", path: "/admin/reports", icon: BarChart3 },
         ],
     },
@@ -61,12 +64,14 @@ const moduleDefinitions = {
         defaultRoute: "/warehouse/dashboard",
         links: [
             { label: "Warehouse Dashboard", path: "/warehouse/dashboard", icon: LayoutDashboard },
+            { label: "Purchase Requests", path: "/warehouse/requests", icon: ShoppingCart },
             { label: "Storage Facilities", path: "/warehouse/list", icon: Warehouse },
             { label: "Bin Storage Inventory", path: "/warehouse/inventory", icon: Boxes },
             { label: "Stock Transfers", path: "/warehouse/transfers", icon: ArrowLeftRight },
             { label: "Dock Goods Receiving", path: "/warehouse/receiving", icon: PackageCheck },
             { label: "Physical Stock Audit", path: "/warehouse/audit", icon: ClipboardCheck },
             { label: "Damaged Stock Quarantine", path: "/warehouse/damaged", icon: AlertTriangle },
+            { label: "Vendor Debit Notes", path: "/warehouse/debit-notes", icon: RotateCcw },
         ],
     },
     INVENTORY: {
@@ -83,6 +88,7 @@ const moduleDefinitions = {
             { label: "Barcode & SKU Tags", path: "/inventory/barcodes", icon: Barcode },
             { label: "Stock Adjustments", path: "/inventory/adjustments", icon: Sliders },
             { label: "Movement Ledger History", path: "/inventory/history", icon: History },
+            { label: "Demand Forecasting", path: "/demand-forecasting", icon: TrendingUp },
         ],
     },
     SALES: {
@@ -90,6 +96,7 @@ const moduleDefinitions = {
         defaultRoute: "/sales/dashboard",
         links: [
             { label: "Sales Dashboard", path: "/sales/dashboard", icon: LayoutDashboard },
+            { label: "Customer Accounts", path: "/sales/customers", icon: Users },
             { label: "Commercial Sales Orders", path: "/sales/orders", icon: ShoppingCart },
             { label: "Stock Availability (ATP)", path: "/sales/availability", icon: Boxes },
             { label: "Invoices & Billing", path: "/sales/invoices", icon: Receipt },
@@ -252,6 +259,42 @@ const Sidebar = () => {
                         </NavLink>
                     );
                 })}
+
+                {/* Persistent AI Intelligence Assistant */}
+                <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                    <div style={{
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.6px",
+                        color: "#818cf8",
+                        padding: "4px 8px 6px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px"
+                    }}>
+                        <Sparkles size={12} />
+                        Intelligence
+                    </div>
+                    <NavLink
+                        to="/ai/assistant"
+                        className={({ isActive }) =>
+                            `sidebar-link ${isActive ? "active" : ""}`
+                        }
+                    >
+                        <Sparkles size={17} color="#a5b4fc" />
+                        <span>AI ERP Assistant</span>
+                    </NavLink>
+                    <NavLink
+                        to="/demand-forecasting"
+                        className={({ isActive }) =>
+                            `sidebar-link ${isActive ? "active" : ""}`
+                        }
+                    >
+                        <TrendingUp size={17} color="#38bdf8" />
+                        <span>Demand Forecasting</span>
+                    </NavLink>
+                </div>
             </nav>
         </aside>
     );

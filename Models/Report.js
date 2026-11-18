@@ -24,6 +24,13 @@ const reportSchema = new mongoose.Schema(
     generatedDate: {
       type: Date,
       default: Date.now,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          return v <= new Date(Date.now() + 60000);
+        },
+        message: "Generated date cannot be in the future.",
+      },
     },
 
     periodStart: {
@@ -32,6 +39,14 @@ const reportSchema = new mongoose.Schema(
 
     periodEnd: {
       type: Date,
+      validate: {
+        validator: function (v) {
+          if (!v) return true;
+          if (this.periodStart && v < this.periodStart) return false;
+          return true;
+        },
+        message: "periodEnd cannot be earlier than periodStart.",
+      },
     },
 
     fileUrl: {

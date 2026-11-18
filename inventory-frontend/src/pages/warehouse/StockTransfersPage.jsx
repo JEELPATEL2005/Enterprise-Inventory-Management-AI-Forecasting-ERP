@@ -8,6 +8,7 @@ import axiosInstance from "../../utils/axiosConfig";
 export const StockTransfersPage = () => {
   const [transfers, setTransfers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [allWarehouses, setAllWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -19,31 +20,36 @@ export const StockTransfersPage = () => {
     destinationWarehouse: "",
     product: "",
     quantity: 1,
+    expectedArrivalDate: "",
     notes: "",
   });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [trfRes, whRes, prodRes] = await Promise.all([
+      const [trfRes, whRes, allWhRes, prodRes] = await Promise.all([
         axiosInstance.get("/api/stock-transfers"),
         axiosInstance.get("/api/warehouses"),
+        axiosInstance.get("/api/warehouses?allowAllActive=true&status=ACTIVE"),
         axiosInstance.get("/api/products"),
       ]);
 
       const trfData = trfRes.data?.data || trfRes.data || [];
       const whData = whRes.data?.data || whRes.data || [];
+      const allWhData = allWhRes.data?.data || allWhRes.data || [];
       const pData = prodRes.data?.data || prodRes.data || [];
 
       setTransfers(Array.isArray(trfData) ? trfData : []);
       setWarehouses(Array.isArray(whData) ? whData : []);
+      setAllWarehouses(Array.isArray(allWhData) ? allWhData : []);
       setProducts(Array.isArray(pData) ? pData : []);
 
-      if (whData.length >= 2 && !formData.sourceWarehouse) {
+      if (whData.length > 0 && !formData.sourceWarehouse) {
+        const defaultDst = allWhData.find((w) => String(w._id) !== String(whData[0]._id))?._id || "";
         setFormData((prev) => ({
           ...prev,
           sourceWarehouse: whData[0]._id,
-          destinationWarehouse: whData[1]._id,
+          destinationWarehouse: defaultDst,
         }));
       }
       if (pData.length > 0 && !formData.product) {
@@ -75,11 +81,22 @@ export const StockTransfersPage = () => {
       return;
     }
 
+    if (formData.expectedArrivalDate) {
+      const ea = new Date(formData.expectedArrivalDate);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      if (ea < todayStart) {
+        setToast({ type: "error", message: "Expected arrival date cannot be in the past. Please select today or a future date." });
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
       await axiosInstance.post("/api/stock-transfers", {
         sourceWarehouse: formData.sourceWarehouse,
         destinationWarehouse: formData.destinationWarehouse,
+        expectedArrivalDate: formData.expectedArrivalDate || undefined,
         items: [{ product: formData.product, quantity: Number(formData.quantity) }],
       });
       setToast({ type: "success", message: "Stock transfer initiated successfully." });
@@ -332,7 +349,7 @@ export const StockTransfersPage = () => {
                 required
               >
                 <option value="">Select destination warehouse...</option>
-                {warehouses.map((w) => (
+                {allWarehouses.map((w) => (
                   <option key={w._id} value={w._id}>
                     {w.name || w.warehouseName}
                   </option>
@@ -367,6 +384,16 @@ export const StockTransfersPage = () => {
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
               />
             </div>
+          </div>
+
+          <div className="form-field">
+            <label>Expected Arrival Date (Optional)</label>
+            <input
+              type="date"
+              min={new Date().toISOString().split("T")[0]}
+              value={formData.expectedArrivalDate || ""}
+              onChange={(e) => setFormData({ ...formData, expectedArrivalDate: e.target.value })}
+            />
           </div>
         </form>
       </Modal>

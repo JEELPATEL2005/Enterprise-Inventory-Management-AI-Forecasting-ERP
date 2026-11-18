@@ -36,6 +36,12 @@ const employeeSchema = new mongoose.Schema(
       ref: "Role",
       required: [true, "Role assignment is required"],
     },
+    assignedWarehouses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Warehouse",
+      },
+    ],
     status: {
       type: String,
       enum: ["ACTIVE", "INACTIVE", "SUSPENDED"],

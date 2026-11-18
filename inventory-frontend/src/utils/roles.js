@@ -132,8 +132,9 @@ export const isPathAuthorizedForRole = (pathname, role) => {
     return false;
   }
 
-  // Neutral authenticated route
+  // Neutral authenticated routes
   if (pathname === "/dashboard") return true;
+  if (pathname.startsWith("/ai")) return true;
 
   // Super Admin can access all pages
   if (norm === ROLES.SUPER_ADMIN) return true;
@@ -142,7 +143,11 @@ export const isPathAuthorizedForRole = (pathname, role) => {
     return pathname.startsWith("/purchase");
   }
   if (norm === ROLES.WAREHOUSE_MANAGER) {
-    return pathname.startsWith("/warehouse") || pathname.startsWith("/inventory");
+    return (
+      pathname.startsWith("/warehouse") ||
+      pathname.startsWith("/inventory") ||
+      pathname.startsWith("/purchase/requests")
+    );
   }
   if (norm === ROLES.SALES_MANAGER) {
     return pathname.startsWith("/sales") || pathname.startsWith("/delivery");
